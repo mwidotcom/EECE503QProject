@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep *)",
+      "Bash(terraform version *)",
+      "Bash(kubectl version *)",
+      "Bash(kustomize version *)",
+      "Bash(checkov --version)",
+      "Bash(kubectl kustomize *)"
+    ]
+  }
+}

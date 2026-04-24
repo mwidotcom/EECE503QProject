@@ -1,0 +1,38 @@
+# Node
+node_modules/
+npm-debug.log*
+coverage/
+
+# Environment & secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+terraform.tfvars
+*.pem
+*.key
+*.p12
+secrets/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+tfplan
+
+# Lambda build artifact
+lambda/*/function.zip
+lambda/*/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# kustomization backups from sed
+*.bak

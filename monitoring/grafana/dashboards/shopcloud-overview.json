@@ -1,0 +1,103 @@
+{
+  "title": "ShopCloud — Service Overview",
+  "uid": "shopcloud-overview",
+  "schemaVersion": 38,
+  "version": 1,
+  "tags": ["shopcloud"],
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count{namespace=\"shopcloud\"}[2m])) by (app)",
+          "legendFormat": "{{app}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "p99 Latency (s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"shopcloud\"}[5m])) by (le, app))",
+          "legendFormat": "{{app}} p99"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "5xx Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(http_request_duration_seconds_count{namespace=\"shopcloud\",status_code=~\"5..\"}[5m])) by (app) / sum(rate(http_request_duration_seconds_count{namespace=\"shopcloud\"}[5m])) by (app)",
+          "legendFormat": "{{app}}"
+        }
+      ],
+      "thresholds": {
+        "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 1 },
+          { "color": "red", "value": 5 }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Pod Count by Service",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_ready{namespace=\"shopcloud\",condition=\"true\"}) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "SQS Invoice Queue Depth",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "aws_sqs_approximate_number_of_messages_visible_maximum{queue_name=~\".*invoice.*\"}",
+          "legendFormat": "{{queue_name}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "RDS CPU Utilization (%)",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "aws_rds_cpuutilization_average",
+          "legendFormat": "RDS CPU"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 7,
+      "title": "Redis Memory Usage (%)",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "targets": [
+        {
+          "expr": "aws_elasticache_database_memory_usage_percentage_average",
+          "legendFormat": "Redis Memory"
+        }
+      ]
+    }
+  ]
+}

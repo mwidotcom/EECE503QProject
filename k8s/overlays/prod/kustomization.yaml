@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: shopcloud
+
+images:
+  - name: REGISTRY/shopcloud/catalog
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/shopcloud/catalog
+    newTag: prod-latest
+  - name: REGISTRY/shopcloud/cart
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/shopcloud/cart
+    newTag: prod-latest
+  - name: REGISTRY/shopcloud/checkout
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/shopcloud/checkout
+    newTag: prod-latest
+  - name: REGISTRY/shopcloud/auth
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/shopcloud/auth
+    newTag: prod-latest
+  - name: REGISTRY/shopcloud/admin
+    newName: 123456789012.dkr.ecr.us-east-1.amazonaws.com/shopcloud/admin
+    newTag: prod-latest
+
+patches:
+  - path: replicas-patch.yaml
+  - path: resources-patch.yaml

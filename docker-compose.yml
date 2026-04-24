@@ -1,0 +1,191 @@
+version: "3.9"
+
+# Local development — mirrors the cloud architecture without AWS-managed services.
+# Usage: docker-compose up --build
+
+networks:
+  shopcloud:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+  # ─── Infrastructure ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: shopcloud
+      POSTGRES_USER: shopcloud_dev
+      POSTGRES_PASSWORD: devpassword123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql
+    networks: [shopcloud]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopcloud_dev -d shopcloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass devredispassword
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks: [shopcloud]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "devredispassword", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─── Microservices ───────────────────────────────────────────────────────────
+  catalog:
+    build:
+      context: ./services/catalog
+      target: runner
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: shopcloud
+      DB_USER: shopcloud_dev
+      DB_PASSWORD: devpassword123
+      DB_SSL: "false"
+      AWS_REGION: us-east-1
+      COGNITO_USER_POOL_ID: local-mock
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [shopcloud]
+    restart: unless-stopped
+
+  cart:
+    build:
+      context: ./services/cart
+      target: runner
+    ports:
+      - "3002:3002"
+    environment:
+      PORT: 3002
+      NODE_ENV: development
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: devredispassword
+      REDIS_TLS: "false"
+      AWS_REGION: us-east-1
+      COGNITO_USER_POOL_ID: local-mock
+      LOG_LEVEL: debug
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [shopcloud]
+    restart: unless-stopped
+
+  checkout:
+    build:
+      context: ./services/checkout
+      target: runner
+    ports:
+      - "3003:3003"
+    environment:
+      PORT: 3003
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: shopcloud
+      DB_USER: shopcloud_dev
+      DB_PASSWORD: devpassword123
+      DB_SSL: "false"
+      AWS_REGION: us-east-1
+      COGNITO_USER_POOL_ID: local-mock
+      SQS_INVOICE_QUEUE_URL: http://localstack:4566/000000000000/shopcloud-dev-invoice.fifo
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [shopcloud]
+    restart: unless-stopped
+
+  auth:
+    build:
+      context: ./services/auth
+      target: runner
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: 3004
+      NODE_ENV: development
+      AWS_REGION: us-east-1
+      COGNITO_CLIENT_ID: local-client-id
+      LOG_LEVEL: debug
+    networks: [shopcloud]
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: ./services/admin
+      target: runner
+    ports:
+      - "3005:3005"
+    environment:
+      PORT: 3005
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: shopcloud
+      DB_USER: shopcloud_dev
+      DB_PASSWORD: devpassword123
+      DB_SSL: "false"
+      AWS_REGION: us-east-1
+      COGNITO_ADMIN_POOL_ID: local-mock
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [shopcloud]
+    restart: unless-stopped
+
+  # ─── LocalStack (AWS emulation for local dev) ────────────────────────────────
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: sqs,s3,ses,secretsmanager,ssm
+      AWS_DEFAULT_REGION: us-east-1
+      PERSISTENCE: 1
+    volumes:
+      - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init.sh
+    networks: [shopcloud]
+
+  # ─── Monitoring (lightweight local stack) ────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/local-prometheus.yml:/etc/prometheus/prometheus.yml
+    networks: [shopcloud]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks: [shopcloud]
+    depends_on: [prometheus]

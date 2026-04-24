@@ -1,0 +1,157 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: shopcloud-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus
+spec:
+  groups:
+    # ─── Service Availability ────────────────────────────────────────────────
+    - name: shopcloud.availability
+      interval: 30s
+      rules:
+        - alert: ServiceDown
+          expr: |
+            up{namespace="shopcloud"} == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Service {{ $labels.pod }} is down"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been down for 1 minute."
+
+        - alert: HighPodRestartRate
+          expr: |
+            rate(kube_pod_container_status_restarts_total{namespace="shopcloud"}[15m]) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High restart rate for {{ $labels.pod }}"
+            description: "Pod {{ $labels.pod }} is restarting more than 6 times per hour."
+
+        - alert: PodCrashLooping
+          expr: |
+            kube_pod_container_status_waiting_reason{namespace="shopcloud",reason="CrashLoopBackOff"} > 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.pod }} is CrashLoopBackOff"
+
+    # ─── Latency ─────────────────────────────────────────────────────────────
+    - name: shopcloud.latency
+      rules:
+        - alert: HighP99Latency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{namespace="shopcloud"}[5m])) by (le, service)
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High p99 latency on {{ $labels.service }}"
+            description: "p99 response time is {{ $value | humanizeDuration }} (threshold: 2s)"
+
+        - alert: HighErrorRate
+          expr: |
+            sum(rate(http_request_duration_seconds_count{namespace="shopcloud", status_code=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_request_duration_seconds_count{namespace="shopcloud"}[5m])) by (service)
+            > 0.05
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High 5xx error rate on {{ $labels.service }}"
+            description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+    # ─── Resource Saturation ─────────────────────────────────────────────────
+    - name: shopcloud.resources
+      rules:
+        - alert: HighMemoryUsage
+          expr: |
+            container_memory_working_set_bytes{namespace="shopcloud",container!=""}
+            / on(pod, container) kube_pod_container_resource_limits{namespace="shopcloud",resource="memory",container!=""}
+            > 0.9
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage in {{ $labels.pod }}/{{ $labels.container }}"
+
+        - alert: HPAMaxedOut
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="shopcloud"}
+            == kube_horizontalpodautoscaler_spec_max_replicas{namespace="shopcloud"}
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "HPA {{ $labels.horizontalpodautoscaler }} is at max replicas"
+
+    # ─── Database ────────────────────────────────────────────────────────────
+    - name: shopcloud.database
+      rules:
+        - alert: RDSHighCPU
+          expr: |
+            aws_rds_cpuutilization_average > 80
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "RDS CPU high: {{ $value }}%"
+
+        - alert: RDSLowFreeStorage
+          expr: |
+            aws_rds_free_storage_space_average < 10737418240
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "RDS free storage below 10 GB"
+
+    # ─── SQS / Invoice Pipeline ──────────────────────────────────────────────
+    - name: shopcloud.sqs
+      rules:
+        - alert: DLQMessagesVisible
+          expr: |
+            aws_sqs_approximate_number_of_messages_visible_maximum{queue_name=~".*invoice-dlq.*"} > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Messages in invoice DLQ — invoice generation is failing"
+            description: "{{ $value }} messages stuck in the dead-letter queue."
+
+        - alert: SQSQueueDepthHigh
+          expr: |
+            aws_sqs_approximate_number_of_messages_visible_maximum{queue_name=~".*invoice.*",queue_name!~".*dlq.*"} > 1000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Invoice queue depth > 1000 — consider scaling Lambda"
+
+    # ─── Redis ───────────────────────────────────────────────────────────────
+    - name: shopcloud.redis
+      rules:
+        - alert: RedisHighMemoryUsage
+          expr: |
+            aws_elasticache_database_memory_usage_percentage_average > 80
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "ElastiCache Redis memory > 80%"
+
+        - alert: RedisConnectionsHigh
+          expr: |
+            aws_elasticache_curr_connections_maximum > 10000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Redis connection count is high: {{ $value }}"

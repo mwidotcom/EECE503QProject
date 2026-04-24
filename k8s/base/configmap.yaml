@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shopcloud-config
+  namespace: shopcloud
+data:
+  aws_region: "us-east-1"
+  cognito_customer_pool_id: "REPLACE_ME"
+  cognito_admin_pool_id: "REPLACE_ME"
+  log_level: "info"
+  node_env: "production"

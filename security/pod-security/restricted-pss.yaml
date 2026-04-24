@@ -1,0 +1,17 @@
+# Pod Security Standards — applied at namespace level via labels in namespace.yaml
+# This file documents the exact constraints enforced by the "restricted" profile.
+# Reference: https://kubernetes.io/docs/concepts/security/pod-security-standards/
+
+# Enforced by namespace label: pod-security.kubernetes.io/enforce: restricted
+# Constraints that apply to ALL pods in the shopcloud namespace:
+
+# 1. Volumes: only configMap, emptyDir, ephemeral, persistentVolumeClaim, projected, secret
+# 2. Privilege escalation: allowPrivilegeEscalation must be false
+# 3. Root: runAsNonRoot must be true
+# 4. Capabilities: all capabilities must be dropped; only NET_BIND_SERVICE may be added
+# 5. Seccomp: RuntimeDefault or Localhost profile required
+# 6. Proc mount: only Default proc mount
+# 7. SELinux: restricted options only
+
+# To verify compliance on running pods:
+# kubectl get pods -n shopcloud -o json | jq '.items[].spec.securityContext'

@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - catalog/serviceaccount.yaml
+  - catalog/deployment.yaml
+  - catalog/service.yaml
+  - catalog/hpa.yaml
+  - cart/serviceaccount.yaml
+  - cart/deployment.yaml
+  - cart/service.yaml
+  - cart/hpa.yaml
+  - checkout/serviceaccount.yaml
+  - checkout/deployment.yaml
+  - checkout/service.yaml
+  - checkout/hpa.yaml
+  - auth/serviceaccount.yaml
+  - auth/deployment.yaml
+  - auth/service.yaml
+  - auth/hpa.yaml
+  - admin/serviceaccount.yaml
+  - admin/deployment.yaml
+  - admin/service.yaml
+  - ingress/public-ingress.yaml
+  - ingress/admin-ingress.yaml
+  - keda/checkout-scaledobject.yaml
+  - configmap.yaml
+  - network-policy.yaml

@@ -1,0 +1,148 @@
+---
+# Deny all ingress/egress by default, then selectively allow
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: shopcloud
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# Allow catalog: ingress from ALB, egress to RDS and DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: catalog-policy
+  namespace: shopcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: catalog
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 3001
+  egress:
+    - ports:
+        - port: 5432   # RDS
+        - port: 443    # AWS APIs (Secrets Manager, SSM)
+        - port: 53     # DNS
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+
+---
+# Allow cart: ingress from ALB, egress to Redis and DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cart-policy
+  namespace: shopcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: cart
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 3002
+  egress:
+    - ports:
+        - port: 6379   # Redis
+        - port: 443
+        - port: 53
+          protocol: UDP
+
+---
+# Allow checkout: ingress from ALB, egress to RDS, SQS, DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: checkout-policy
+  namespace: shopcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: checkout
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 3003
+  egress:
+    - ports:
+        - port: 5432
+        - port: 443    # SQS via HTTPS
+        - port: 53
+          protocol: UDP
+
+---
+# Allow auth: ingress from ALB, egress to Cognito API, DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: auth-policy
+  namespace: shopcloud
+spec:
+  podSelector:
+    matchLabels:
+      app: auth
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 3004
+  egress:
+    - ports:
+        - port: 443
+        - port: 53
+          protocol: UDP
+
+---
+# Allow Prometheus scraping from monitoring namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: shopcloud
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 3001
+        - port: 3002
+        - port: 3003
+        - port: 3004
+        - port: 3005

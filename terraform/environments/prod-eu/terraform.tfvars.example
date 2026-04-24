@@ -1,0 +1,22 @@
+# Copy to terraform.tfvars and fill in actual values — NEVER commit terraform.tfvars
+
+aws_region = "eu-west-1"
+vpc_cidr   = "10.1.0.0/16"
+
+db_username = "shopcloud_admin"
+# db_password        — set via TF_VAR_db_password env variable
+# redis_auth_token   — set via TF_VAR_redis_auth_token env variable
+# origin_verify_secret — set via TF_VAR_origin_verify_secret env variable
+
+sender_email        = "noreply@shopcloud.example.com"
+domain_names        = ["shopcloud.example.com"]
+acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/..."
+public_alb_dns_name = "shopcloud-prod-eu-alb-1234567890.eu-west-1.elb.amazonaws.com"
+route53_zone_id     = "Z1234567890ABC"
+
+enable_shield_advanced = true
+alert_emails           = ["platform-team@example.com"]
+
+vpn_server_certificate_arn      = "arn:aws:acm:eu-west-1:123456789012:certificate/..."
+vpn_client_root_certificate_arn = "arn:aws:acm:eu-west-1:123456789012:certificate/..."
+vpn_saml_provider_arn           = "arn:aws:iam::123456789012:saml-provider/shopcloud-admin-vpn"
