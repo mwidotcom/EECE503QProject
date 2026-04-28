@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Cluster-scoped resources — applied once per cluster, not per namespace.
+# Apply with: kubectl apply -k k8s/cluster-components/
+resources:
+  - eso-secretstore.yaml
+  - cluster-autoscaler.yaml

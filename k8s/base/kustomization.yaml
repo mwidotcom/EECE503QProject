@@ -22,8 +22,11 @@ resources:
   - admin/serviceaccount.yaml
   - admin/deployment.yaml
   - admin/service.yaml
+  - admin/hpa.yaml
   - ingress/public-ingress.yaml
   - ingress/admin-ingress.yaml
   - keda/checkout-scaledobject.yaml
   - configmap.yaml
   - network-policy.yaml
+  - pdb.yaml
+  - secrets/externalsecrets.yaml
